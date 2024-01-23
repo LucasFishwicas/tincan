@@ -6,7 +6,6 @@ import (
 )
 
 
-
 func main() {
     // Define a handler function for incoming requests
     http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
