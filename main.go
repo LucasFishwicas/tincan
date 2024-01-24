@@ -41,7 +41,7 @@ func handleMessage(w http.ResponseWriter, r *http.Request) {
     if message == "" {
         fmt.Fprintf(w, "No message given\n")
     } else {
-
+    
         // Add a waitgroup for each goroutine
         wg.Add(1)
         go messageReceive(&wg, messageChan, message)
@@ -56,7 +56,7 @@ func handleMessage(w http.ResponseWriter, r *http.Request) {
 func main() {
     // Define a handler function for incoming requests
     http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-        fmt.Fprintf(w,"Welcome to tinCan\nThe single-line CLI chat service")
+        fmt.Fprintf(w,"Welcome to tincan\nThe single-line CLI chat service")
     })
 
     // Handler function for URL parameter messages. "/chat?message=..."
