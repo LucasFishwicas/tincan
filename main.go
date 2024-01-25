@@ -1,9 +1,9 @@
 package main
 
 import (
-	"fmt"
-	"net/http"
-	"sync"
+    "fmt"
+    "net/http"
+    "sync"
 )
 
 // Create a channel and waitgroup
