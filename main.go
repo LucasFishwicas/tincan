@@ -6,11 +6,7 @@ import (
     "sync"
 )
 
-// Create a channel and waitgroup
-var messageChan = make(chan string, 100) 
-var wg sync.WaitGroup
-
-func receiveRoutine(w http.ResponseWriter) {
+func receiveRoutine(wg *sync.WaitGroup, messageChan chan string, w http.ResponseWriter) {
 
     // Loop over messages in channel and print to http.ResponseWriter
     for message := range messageChan {
@@ -21,7 +17,7 @@ func receiveRoutine(w http.ResponseWriter) {
     wg.Done()
 }
 
-func sendRoutine(user string, message string) {
+func sendRoutine(wg *sync.WaitGroup, messageChan chan string, user string, message string) {
 
     // Add message to channel
     messageChan <- fmt.Sprintf("%s:\n   %s\n", user, message)
@@ -33,11 +29,18 @@ func sendRoutine(user string, message string) {
 
 func handleReceive(w http.ResponseWriter, r *http.Request) {
 
+    // Create a channel and waitgroup
+    var messageChan = make(chan string, 100) 
+    var wg sync.WaitGroup
+
     fmt.Fprintf(w, "RECEIVE REQUEST\n")
     fmt.Printf("RECEIVE REQUEST\n")
 
+    messageChan <- fmt.Sprintf("CANNOT ACCESS MESSAGES AT THIS TIME")
+
     wg.Add(1)
-    go receiveRoutine(w)
+    close(messageChan)
+    go receiveRoutine(&wg, messageChan, w)
     wg.Wait()
 }
 
@@ -45,6 +48,13 @@ func handleSend(w http.ResponseWriter, r *http.Request) {
     
     fmt.Fprintf(w, "SEND REQUEST\n")
     fmt.Printf("SEND REQUEST\n")
+
+    fmt.Fprintf(w, "Client: %s\n", r.RemoteAddr)
+    fmt.Printf("Client: %s\n", r.RemoteAddr)
+
+    // Create a channel and waitgroup
+    var messageChan = make(chan string, 100) 
+    var wg sync.WaitGroup
 
 
     // Pull message from URL parameters (e.g., ?message=...)
@@ -64,9 +74,9 @@ func handleSend(w http.ResponseWriter, r *http.Request) {
 
         // Add a waitgroup for each goroutine
         wg.Add(1)
-        go sendRoutine(user, message)
+        go sendRoutine(&wg, messageChan, user, message)
         wg.Add(1)
-        go receiveRoutine(w)
+        go receiveRoutine(&wg, messageChan, w)
 
         // Wait for all waitgroups to finish
         wg.Wait()
@@ -77,7 +87,7 @@ func main() {
 
     // Define a handler function for Home
     http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-        fmt.Fprintf(w,"Welcome to tincan\nThe single-line CLI chat service")
+        fmt.Fprintf(w,"Welcome to tincan\nThe single-line CLI chat service\n")
     })
 
     // Handler function for sending URL parameter messages. "/send?message=..."
