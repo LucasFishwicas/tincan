@@ -21,7 +21,7 @@ var upgrader = websocket.Upgrader{
 
 
 // Handler function to handle requests
-func handler(w http.ResponseWriter,r *http.Request) {
+func handle(w http.ResponseWriter,r *http.Request) {
     // Check if request wants to upgrade to Websocket
     if r.Header.Get("Upgrade") == "websocket" {
         wsHandler(w,r)
@@ -37,18 +37,32 @@ func wsHandler(w http.ResponseWriter,r *http.Request) {
     // Upgrade to Websocket or print error and return
     conn, err := upgrader.Upgrade(w,r,nil)
     if err != nil {
-        log.Println(err)
+        log.Println("Failed to Upgrade to Websocket:",err)
+        return
+    }
+    defer conn.Close()
+
+    // Notify server of successful upgrade
+    fmt.Println("Successfully Upgraded http to Websocket")
+
+    
+    // ERROR ON CLIENT SIDE
+    // Receives HTTP 200 OK instead of HTTP 101 SWITCHING PROTOCOL
+
+
+    // Send a welcome message  --  doesn't appear
+    err = conn.WriteMessage(websocket.TextMessage, []byte("Hello from server!"))
+    if err != nil {
+        fmt.Println("Error sending message:", err)
         return
     }
 
-    // Print message to Server
-    fmt.Println("Successfully upgraded http to Websocket")
 
-    // Eternally loop and check messages -causes error on ReadMessage
-    for {
+    // Eternally loop and check messages - causes error on ReadMessage
+    /*for {
         messageType,_,err := conn.ReadMessage()
         if err != nil {
-            log.Println("ReadMessage:",err)
+            log.Println("Erro reading message:",err)
             return
         }
 
@@ -56,7 +70,7 @@ func wsHandler(w http.ResponseWriter,r *http.Request) {
             log.Println("WriteMessage:",err)
             return
         }
-    }
+    }*/
 }
 
 
@@ -76,7 +90,8 @@ func main() {
     http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
         fmt.Fprintf(w,"Welcome to tincan\nThe single-line CLI chat service\n")
         
-        handler(w,r)
+        // handle http request or ws upgrade request 
+        handle(w,r)
     })
     
 
