@@ -38,7 +38,7 @@ func handle(w http.ResponseWriter,r *http.Request) {
 }
 
 
-
+// Read input from user server-side
 func readInput() {
     scanner := bufio.NewScanner(os.Stdin)
     for scanner.Scan() {
@@ -74,7 +74,6 @@ func wsHandler(w http.ResponseWriter,r *http.Request) {
         return
     }
 
-    go readInput() 
 
     // Eternally loop and check messages - causes error on ReadMessage
     for {
@@ -112,8 +111,9 @@ func main() {
     http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
         fmt.Fprintf(w,"Welcome to tincan\nThe single-line CLI chat service\n") 
     })
-    http.HandleFunc("/ws",wsHandler)
+    go http.HandleFunc("/ws",wsHandler)
     
+    go readInput() 
 
     // Start the server on port 8080
     fmt.Println("Server listening on port 8080")
