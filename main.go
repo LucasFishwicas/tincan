@@ -20,6 +20,8 @@ var (
         ReadBufferSize: 1024,
         WriteBufferSize: 1024,
     }
+
+
     // Create channel for sending server-side to client
     sendChan = make(chan string)
     // Create channel for receiving client-side to server
@@ -43,7 +45,7 @@ func handle(w http.ResponseWriter,r *http.Request) {
 }
 
 
-// Read sent from user server-side
+// Read message sent from user server-side
 func readSend(wg *sync.WaitGroup) {
     scanner := bufio.NewScanner(os.Stdin)
     for scanner.Scan() {
@@ -62,7 +64,7 @@ func readSend(wg *sync.WaitGroup) {
 
 
 
-// Read sent from user client-side
+// Read message sent from user client-side
 func readReceive(wg *sync.WaitGroup, conn *websocket.Conn) {
     for { 
         messageType,message,err := conn.ReadMessage()
@@ -107,23 +109,22 @@ func wsHandler(w http.ResponseWriter,r *http.Request) {
         return
     }
 
-
-    wg.Add(1)
-    go readSend(&wg) 
-    wg.Add(1)
-    go readReceive(&wg,conn)
+    // Launch goroutines for reading and writing
+    wg.Add(2)
+    go readSend(&wg)
+    go readReceive(&wg, conn)
 
 
     // Eternally loop and check channel messages
     for {
-        select {
+        select {  
         case sent := <-sendChan:
             if err := conn.WriteMessage(websocket.TextMessage,[]byte("-> "+sent)); err != nil {
                 log.Println("Error writing message:",err)
                 return
             }
         case received := <-receiveChan:
-            fmt.Println("-> ",string(received))
+            fmt.Print("-> ",string(received))
         }
     }
 }
@@ -142,6 +143,7 @@ func httpHandler() {
 
 
 func main() {
+
     // Define a handler function for incoming requests
     http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
         fmt.Fprintf(w,"Welcome to tincan\nThe single-line CLI chat service\n") 
