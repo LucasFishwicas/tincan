@@ -25,7 +25,7 @@ func createQ(capacity int) *MessageQ {
 }
 func (self *MessageQ) enqueue(user string, ipAddr string, message string) {
     if self.length == self.capacity {
-        self.head = (self.head+1) % self.capacity
+        self.dequeue()
     }
     messageMap := map[string]string{
         "user": user,
@@ -60,6 +60,7 @@ func receiveRoutine(wg *sync.WaitGroup, w http.ResponseWriter) {
     // Loop over messages in queue and print to http.ResponseWriter
     for i := 0; i < Messages.length; i++ {
         index := (Messages.head+i) % Messages.capacity
+        fmt.Printf("length: %d, i: %d, index: %d\n", Messages.length, i, index)
         msg := Messages.messages[index]
         if msg["message"] == "" {
             continue
