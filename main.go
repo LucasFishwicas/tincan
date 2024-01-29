@@ -136,8 +136,8 @@ func handleSend(w http.ResponseWriter, r *http.Request) {
         wg.Add(1)
         go sendRoutine(&wg, user, message, ipAddr)
         wg.Wait()
-        wg.Add(1)
-        go receiveRoutine(&wg, w)
+        //wg.Add(1)
+        //go receiveRoutine(&wg, w)
 
         // Wait for all waitgroups to finish
         wg.Wait()
