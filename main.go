@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+    //"os/signal"
     "sync"
 
 	"github.com/gorilla/websocket"
@@ -26,7 +27,8 @@ var (
         WriteBufferSize: 1024,
     }
 
-
+    // Create channel to handle interrupt
+    //signalChan = make(chan os.Signal, 1)
     // Create channel for sending server-side to client
     sendChan = make(chan string)
     // Create channel for receiving client-side to server
@@ -104,8 +106,11 @@ func wsHandler(w http.ResponseWriter,r *http.Request) {
     }
     defer conn.Close()
 
+
+    client := conn.RemoteAddr()
+
     // Notify server of successful upgrade
-    fmt.Println("client:// entered the chat")
+    fmt.Println("client://",client," entered the chat")
 
     // Send a welcome message
     err = conn.WriteMessage(websocket.TextMessage, []byte("tincan:// You're in! "))
@@ -129,7 +134,7 @@ func wsHandler(w http.ResponseWriter,r *http.Request) {
                 return
             }
         case received := <-receiveChan:
-            fmt.Print("-> ",string(received))
+            fmt.Print("-> ",string(received)) 
         }
     }
 }
@@ -157,7 +162,6 @@ func main() {
 
     http.HandleFunc("/ws",wsHandler)
     
-
 
     // Start the server on port 8080
     fmt.Println("Server listening on port 8080")
