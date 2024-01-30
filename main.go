@@ -131,6 +131,7 @@ func handleSend(w http.ResponseWriter, r *http.Request) {
     if message == "" {
         fmt.Fprintf(w, "No message given\n")
         fmt.Printf("No message given\n")
+        fmt.Printf("user: %s", user)
     } else {
 
         // Add a waitgroup for each goroutine
