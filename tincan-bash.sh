@@ -5,17 +5,17 @@ curl "192.168.1.54:8080"
 read -p "send or receive? " response
 if [ $response = "send" ]; then
     read -p "name: " name
-    curl -G "192.168.1.54:8080/send" --data-urlencode "message=enter" --data-urlencode "user=$name"
+    curl -G "192.168.1.54:8080/http/send" --data-urlencode "message=enter" --data-urlencode "user=$name"
     read -p "message: " message
     echo "name: $name, message: $message"
-    curl -G "192.168.1.54:8080/send" --data-urlencode "message=$message" --data-urlencode "user=$name"
+    curl -G "192.168.1.54:8080/http/send" --data-urlencode "message=$message" --data-urlencode "user=$name"
     while [[ $message != "exit" ]]; do
         read -p "message: " message
         echo "name: $name, message: $message"
-        curl -G "192.168.1.54:8080/send" --data-urlencode "message=$message" --data-urlencode "user=$name"
+        curl -G "192.168.1.54:8080/http/send" --data-urlencode "message=$message" --data-urlencode "user=$name"
     done
 elif [ $response = "receive" ]; then
-    watch -n 2 curl "192.168.1.54:8080/receive"
+    watch -n 2 curl "192.168.1.54:8080/http/receive"
 else
     echo "unrecognised input"
 fi
