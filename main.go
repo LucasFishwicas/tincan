@@ -68,7 +68,7 @@ func receiveRoutine(wg *sync.WaitGroup, w http.ResponseWriter) {
         Msg := fmt.Sprintf("[%d] %s (%s):\n   %s\n", index,
                                                      msg["user"], 
                                                      msg["ipAddr"], 
-                                                     msg["message"]
+                                                     msg["message"],
         )
         fmt.Fprintf(w, Msg)
         fmt.Printf(Msg)
