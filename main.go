@@ -65,7 +65,11 @@ func receiveRoutine(wg *sync.WaitGroup, w http.ResponseWriter) {
         if msg["message"] == "" {
             continue
         }
-        Msg := fmt.Sprintf("[%d] %s (%s):\n   %s\n", index, msg["user"], msg["ipAddr"], msg["message"])
+        Msg := fmt.Sprintf("[%d] %s (%s):\n   %s\n", index,
+                                                     msg["user"], 
+                                                     msg["ipAddr"], 
+                                                     msg["message"]
+        )
         fmt.Fprintf(w, Msg)
         fmt.Printf(Msg)
     }
@@ -88,7 +92,7 @@ func sendRoutine(
     wg.Done()
 }
 
-// Handler function for requests to "/receive" endpoint
+// Handler function for requests to "/http/receive" endpoint
 func handleReceive(w http.ResponseWriter, r *http.Request) {
     // Create a waitgroup
     var wg sync.WaitGroup
@@ -107,7 +111,7 @@ func handleReceive(w http.ResponseWriter, r *http.Request) {
     wg.Wait()
 }
 
-// Handler function for requests to "/send" endpoint
+// Handler function for requests to "/http/send" endpoint
 func handleSend(w http.ResponseWriter, r *http.Request) {
     
     // Create a waitgroup
@@ -154,10 +158,10 @@ func main() {
     })
 
     // Handler function for sending URL parameter messages. "/send?message=..."
-    http.HandleFunc("/send", handleSend)
+    http.HandleFunc("/http/send", handleSend)
 
     // Handler function for receiving URL parameter messages.
-    http.HandleFunc("/receive", handleReceive)
+    http.HandleFunc("/http/receive", handleReceive)
 
     // Start the server on port 8080
     fmt.Println("Server listening on port 8080")
