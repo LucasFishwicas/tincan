@@ -6,8 +6,10 @@ import (
 	"log"
 	"net/http"
 	"os"
-    //"os/signal"
-    "sync"
+	"os/signal"
+	"strings"
+	"sync"
+	"syscall"
 
 	"github.com/gorilla/websocket"
 )
@@ -22,12 +24,12 @@ var (
         WriteBufferSize: 1024,
     }
 
-    // Create channel to handle interrupt
-    //signalChan = make(chan os.Signal, 1)
+    // Create channel to ensure send before closure
+    now_exit = make(chan int, 1)
     // Create channel for sending server-side to client
-    sendChan = make(chan string)
+    sendChan = make(chan string,1)
     // Create channel for receiving client-side to server
-    receiveChan = make(chan string)
+    receiveChan = make(chan string,1)
     // Create a waitgroup
     wg sync.WaitGroup
 )
@@ -52,7 +54,7 @@ func readSend(wg *sync.WaitGroup) {
     scanner := bufio.NewScanner(os.Stdin)
     for scanner.Scan() {
         text := scanner.Text() // Get the current line of text
-        if text != "" {
+        if len(strings.Fields(text)) != 0 {
             sendChan <- text
         }
     }
@@ -71,12 +73,13 @@ func readReceive(wg *sync.WaitGroup, conn *websocket.Conn) {
     for { 
         messageType,message,err := conn.ReadMessage()
         if err != nil {
-            fmt.Println("client:// left the chat")
+            receiveChan <- "client:// left the chat"
             return
         }
-        if string(message) != "" {
+
+        if len(strings.Fields(string(message))) != 0 {
             receiveChan <- string(message)
-        }
+        } 
 
         if messageType == websocket.CloseNormalClosure {
             log.Println("Normal Close messageType received")
@@ -105,10 +108,16 @@ func wsHandler(w http.ResponseWriter,r *http.Request) {
     client := conn.RemoteAddr()
 
     // Notify server of successful upgrade
-    fmt.Println("client://",client," entered the chat")
+    fmt.Println("client://",client,"entered the chat")
+    fmt.Println("")
 
     // Send a welcome message
-    err = conn.WriteMessage(websocket.TextMessage, []byte("tincan:// You're in! "))
+    err = conn.WriteMessage(websocket.TextMessage, []byte("tincan:// You're in!"))
+    if err != nil {
+        log.Println("Error sending message:", err)
+        return
+    }
+    err = conn.WriteMessage(websocket.TextMessage, []byte(" "))
     if err != nil {
         log.Println("Error sending message:", err)
         return
@@ -119,17 +128,32 @@ func wsHandler(w http.ResponseWriter,r *http.Request) {
     go readSend(&wg)
     go readReceive(&wg, conn)
 
+    // Handle server closure using Ctrl-C
+    go exit_session(conn)
+
 
     // Eternally loop and check channel messages
     for {
-        select {  
+        select {
+        case received := <-receiveChan:
+            if string(received) == "client:// left the chat" {
+                fmt.Println("client://",client," left the chat")
+                fmt.Println("")
+            } else {
+                fmt.Print("-> ",string(received))
+            }
         case sent := <-sendChan:
-            if err := conn.WriteMessage(websocket.TextMessage,[]byte("-> "+sent)); err != nil {
+            if sent != "tincan:// Server Shutting Down" {
+                sent = "-> "+sent
+            }
+            if err := conn.WriteMessage(websocket.TextMessage,[]byte(sent)); err != nil {
                 log.Println("Error writing message:",err)
                 return
             }
-        case received := <-receiveChan:
-            fmt.Print("-> ",string(received)) 
+            if sent == "tincan:// Server Shutting Down" {
+                now_exit <- 1
+            }
+        
         }
     }
 }
@@ -145,6 +169,20 @@ func httpHandler() {
 
 
 
+// My not-so-graceful attempt at a graceful shutdown
+func exit_session(conn *websocket.Conn) {
+    exit := make(chan os.Signal, 1)
+    signal.Notify(exit, syscall.SIGINT, syscall.SIGQUIT)
+
+    <-exit
+    sendChan <- "tincan:// Server Shutting Down"
+    <-now_exit
+    os.Exit(0)
+}
+
+
+
+
 
 
 func main() {
@@ -155,12 +193,15 @@ func main() {
     })
 
 
+    // Handle initiation of Websocket
     http.HandleFunc("/ws",wsHandler)
     
 
     // Start the server on port 8080
     fmt.Println("Server listening on port 8080")
+    fmt.Println("")
     http.ListenAndServe(":8080", nil)
+
 
     // Wait for goroutine to finish
     wg.Wait()
