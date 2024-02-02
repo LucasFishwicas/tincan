@@ -12,6 +12,50 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// ---- MAY BE ABLE TO DEFINE EXTERNALLY AND IMPORT?
+// Defining a queue type and attaching enqueue() and dequeue() methods
+type MessageQ struct {
+    messages []map[string]string
+    head int
+    tail int
+    length int
+    capacity int
+}
+func createQ(capacity int) *MessageQ {
+    return &MessageQ{
+        messages: make([]map[string]string, capacity),
+        head: 0,
+        tail: 0,
+        length: 0,
+        capacity: capacity,
+    }
+}
+func (self *MessageQ) enqueue(user string, ipAddr string, message string) {
+    if self.length == self.capacity {
+        self.dequeue()
+    }
+    messageMap := map[string]string{
+        "user": user,
+        "ipAddr": ipAddr,
+        "message": message,
+    }
+    if self.length != 0 {
+        self.tail = (self.tail+1) % self.capacity
+    }
+    self.messages[self.tail] = messageMap
+    self.length++
+}
+func (self *MessageQ) dequeue() map[string]string {
+    if len(self.messages) == 0 {
+        return nil
+    }
+    message := self.messages[self.head]
+    self.head = (self.head+1) % self.capacity
+    self.length--
+    return message
+}
+// ---- |
+
 var (
     // Create Upgrader struct
     upgrader = websocket.Upgrader{
@@ -144,6 +188,104 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 
+
+
+// Goroutine for "/receive" endpoint
+func httpReceiveRoutine(wgQ *sync.WaitGroup, w http.ResponseWriter) {
+    // Loop over messages in queue and print to http.ResponseWriter
+    for i := 0; i < Messages.length; i++ {
+        index := (Messages.head+i) % Messages.capacity
+        fmt.Printf("length: %d, i: %d, index: %d\n", Messages.length, i, index)
+        msg := Messages.messages[index]
+        if msg["message"] == "" {
+            continue
+        }
+        Msg := fmt.Sprintf("[%d] %s (%s):\n   %s\n", index,
+                                                     msg["user"], 
+                                                     msg["ipAddr"], 
+                                                     msg["message"],
+        )
+        fmt.Fprintf(w, Msg)
+        fmt.Printf(Msg)
+    }
+
+    // Finish waitgroup
+    wgQ.Done()
+}
+
+// Goroutine for "/send" endpoint
+func httpSendRoutine(
+            wgQ *sync.WaitGroup, 
+            user string, 
+            message string,
+            ipAddr string) {
+    // Add message to queue
+    Messages.enqueue(user, ipAddr, message)
+
+    // Finish waitgroup
+    wgQ.Done()
+}
+
+
+// Handler function for requests to "/http/receive" endpoint
+func httpHandleReceive(w http.ResponseWriter, r *http.Request) {
+    // Create a waitgroup
+    var wgQ sync.WaitGroup
+
+    // Pull information from request
+    ipAddr := r.RemoteAddr
+
+    fmt.Fprintf(w, "RECEIVE REQUEST: %s\n", ipAddr)
+    fmt.Printf("RECEIVE REQUEST: %s\n", ipAddr)
+
+    // Add waitgroup for goroutine
+    wgQ.Add(1)
+    go httpReceiveRoutine(&wgQ, w)
+
+    // Wait for goroutine to finish
+    wgQ.Wait()
+}
+
+// Handler function for requests to "/http/send" endpoint
+func httpHandleSend(w http.ResponseWriter, r *http.Request) {
+    // Create a waitgroup
+    var wgQ sync.WaitGroup
+
+    // Pull information from request
+    params := r.URL.Query()
+    user := params.Get("user")
+    message := params.Get("message")
+    ipAddr := r.RemoteAddr
+
+    fmt.Fprintf(w, "SEND REQUEST: %s\n", ipAddr)
+    fmt.Printf("SEND REQUEST: %s\n", ipAddr)
+
+    // Check if user is present
+    if user == "" {
+        user = "Anonymous"
+    }
+
+    // Check if message is present
+    if message == "" {
+        fmt.Fprintf(w, "No message given\n")
+        fmt.Printf("No message given\n")
+    } else {
+
+        // Add a waitgroup for each goroutine
+        wgQ.Add(1)
+        go httpSendRoutine(&wgQ, user, message, ipAddr)
+        wgQ.Wait()
+        //wgQ.Add(1)
+        //go httpReceiveRoutine(&wgQ, w)
+
+        // Wait for all waitgroups to finish
+        //wgQ.Wait()
+    }
+}
+
+
+
+
 // Main driver function
 func main() {
     // Define a handler function for Home
@@ -167,143 +309,4 @@ func main() {
     // Wait for goroutine to finish
     wg.Wait()
     fmt.Println("All goroutines finished")
-}
-
-
-// ---- MAY BE ABLE TO DEFINE EXTERNALLY AND IMPORT?
-// Defining a queue type and attaching enqueue() and dequeue() methods
-type MessageQ struct {
-    messages []map[string]string
-    head int
-    tail int
-    length int
-    capacity int
-}
-func createQ(capacity int) *MessageQ {
-    return &MessageQ{
-        messages: make([]map[string]string, capacity),
-        head: 0,
-        tail: 0,
-        length: 0,
-        capacity: capacity,
-    }
-}
-func (self *MessageQ) enqueue(user string, ipAddr string, message string) {
-    if self.length == self.capacity {
-        self.dequeue()
-    }
-    messageMap := map[string]string{
-        "user": user,
-        "ipAddr": ipAddr,
-        "message": message,
-    }
-    if self.length != 0 {
-        self.tail = (self.tail+1) % self.capacity
-    }
-    self.messages[self.tail] = messageMap
-    self.length++
-}
-func (self *MessageQ) dequeue() map[string]string {
-    if len(self.messages) == 0 {
-        return nil
-    }
-    message := self.messages[self.head]
-    self.head = (self.head+1) % self.capacity
-    self.length--
-    return message
-}
-// ---- |
-
-
-// Goroutine for "/receive" endpoint
-func httpReceiveRoutine(wg *sync.WaitGroup, w http.ResponseWriter) {
-    // Loop over messages in queue and print to http.ResponseWriter
-    for i := 0; i < Messages.length; i++ {
-        index := (Messages.head+i) % Messages.capacity
-        fmt.Printf("length: %d, i: %d, index: %d\n", Messages.length, i, index)
-        msg := Messages.messages[index]
-        if msg["message"] == "" {
-            continue
-        }
-        Msg := fmt.Sprintf("[%d] %s (%s):\n   %s\n", index,
-                                                     msg["user"], 
-                                                     msg["ipAddr"], 
-                                                     msg["message"],
-        )
-        fmt.Fprintf(w, Msg)
-        fmt.Printf(Msg)
-    }
-
-    // Finish waitgroup
-    wg.Done()
-}
-
-// Goroutine for "/send" endpoint
-func httpSendRoutine(
-            wg *sync.WaitGroup, 
-            user string, 
-            message string,
-            ipAddr string) {
-    // Add message to queue
-    Messages.enqueue(user, ipAddr, message)
-
-    // Finish waitgroup
-    wg.Done()
-}
-
-
-// Handler function for requests to "/http/receive" endpoint
-func httpHandleReceive(w http.ResponseWriter, r *http.Request) {
-    // Create a waitgroup
-    var wg sync.WaitGroup
-
-    // Pull information from request
-    ipAddr := r.RemoteAddr
-
-    fmt.Fprintf(w, "RECEIVE REQUEST: %s\n", ipAddr)
-    fmt.Printf("RECEIVE REQUEST: %s\n", ipAddr)
-
-    // Add waitgroup for goroutine
-    wg.Add(1)
-    go httpReceiveRoutine(&wg, w)
-
-    // Wait for goroutine to finish
-    wg.Wait()
-}
-
-// Handler function for requests to "/http/send" endpoint
-func httpHandleSend(w http.ResponseWriter, r *http.Request) {
-    // Create a waitgroup
-    var wg sync.WaitGroup
-
-    // Pull information from request
-    params := r.URL.Query()
-    user := params.Get("user")
-    message := params.Get("message")
-    ipAddr := r.RemoteAddr
-
-    fmt.Fprintf(w, "SEND REQUEST: %s\n", ipAddr)
-    fmt.Printf("SEND REQUEST: %s\n", ipAddr)
-
-    // Check if user is present
-    if user == "" {
-        user = "Anonymous"
-    }
-
-    // Check if message is present
-    if message == "" {
-        fmt.Fprintf(w, "No message given\n")
-        fmt.Printf("No message given\n")
-    } else {
-
-        // Add a waitgroup for each goroutine
-        wg.Add(1)
-        go httpSendRoutine(&wg, user, message, ipAddr)
-        wg.Wait()
-        //wg.Add(1)
-        //go httpReceiveRoutine(&wg, w)
-
-        // Wait for all waitgroups to finish
-        wg.Wait()
-    }
 }
