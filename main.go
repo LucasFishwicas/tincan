@@ -175,7 +175,7 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
                 return
             }
         case received := <-receiveChan:
-            fmt.Print("-> ", string(received)) 
+            fmt.Print("-> ", string(received), "\n") 
         }
     }
 }
@@ -288,8 +288,6 @@ func main() {
         fmt.Fprintf(w,"Welcome to tincan://\nThe single-line CLI chat service\n")
     })
 
-    http.HandleFunc("/ws",wsHandler)
-    
     // Handler function for establishing websocket
     http.HandleFunc("/ws", wsHandler)
 
