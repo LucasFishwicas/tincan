@@ -12,50 +12,6 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// ---- MAY BE ABLE TO DEFINE EXTERNALLY AND IMPORT?
-// Defining a queue type and attaching enqueue() and dequeue() methods
-type MessageQ struct {
-    messages []map[string]string
-    head int
-    tail int
-    length int
-    capacity int
-}
-func createQ(capacity int) *MessageQ {
-    return &MessageQ{
-        messages: make([]map[string]string, capacity),
-        head: 0,
-        tail: 0,
-        length: 0,
-        capacity: capacity,
-    }
-}
-func (self *MessageQ) enqueue(user string, ipAddr string, message string) {
-    if self.length == self.capacity {
-        self.dequeue()
-    }
-    messageMap := map[string]string{
-        "user": user,
-        "ipAddr": ipAddr,
-        "message": message,
-    }
-    if self.length != 0 {
-        self.tail = (self.tail+1) % self.capacity
-    }
-    self.messages[self.tail] = messageMap
-    self.length++
-}
-func (self *MessageQ) dequeue() map[string]string {
-    if len(self.messages) == 0 {
-        return nil
-    }
-    message := self.messages[self.head]
-    self.head = (self.head+1) % self.capacity
-    self.length--
-    return message
-}
-// ---- |
-
 var (
     // Create Upgrader struct
     upgrader = websocket.Upgrader{
@@ -93,6 +49,14 @@ func handle(w http.ResponseWriter, r *http.Request) {
     } else {
         httpHandler()
     }
+}
+
+
+// Reserved to handle http requests
+func httpHandler() {
+    // Handle Regular HTTP Request
+    // Sams code can go here...
+    fmt.Println("Not a websocket upgrade")
 }
 
 
@@ -150,7 +114,9 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
     fmt.Println("client://", client, " entered the chat")
 
     // Send a welcome message
-    err = conn.WriteMessage(websocket.TextMessage, []byte("tincan:// You're in! "))
+    err = conn.WriteMessage(websocket.TextMessage, 
+                            []byte("tincan:// You're in! "),
+          )
     if err != nil {
         log.Println("Error sending message:", err)
         return
@@ -161,12 +127,13 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
     go readSend(&wg)
     go readReceive(&wg, conn)
 
-
     // Eternally loop and check channel messages
     for {
         select {  
         case sent := <-sendChan:
-            if err := conn.WriteMessage(websocket.TextMessage, []byte("-> "+sent)); err != nil {
+            if err := conn.WriteMessage(websocket.TextMessage, 
+                                        []byte("-> "+sent),
+                      ); err != nil {
                 log.Println("Error writing message:", err)
                 return
             }
@@ -177,19 +144,79 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 
-// Reserved to handle http requests
-func httpHandler() {
-    // Handle Regular HTTP Request
-    // Sams code can go here...
-    fmt.Println("Not a websocket upgrade")
+// Main driver function
+func main() {
+    // Define a handler function for Home
+    http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+        fmt.Fprintf(w,"Welcome to tincan://\nThe single-line CLI chat service\n")
+    })
+
+    // Handler function for establishing websocket
+    http.HandleFunc("/ws", wsHandler)
+
+    // Handler function for sending URL parameter messages. "/send?message=..."
+    http.HandleFunc("/http/send", httpHandleSend)
+
+    // Handler function for receiving URL parameter messages.
+    http.HandleFunc("/http/receive", httpHandleReceive)
+
+    // Start the server on port 8080
+    fmt.Println("Server listening on port 8080")
+    http.ListenAndServe(":8080", nil)
+
+    // Wait for goroutine to finish
+    wg.Wait()
+    fmt.Println("All goroutines finished")
 }
 
 
-    
+// ---- MAY BE ABLE TO DEFINE EXTERNALLY AND IMPORT?
+// Defining a queue type and attaching enqueue() and dequeue() methods
+type MessageQ struct {
+    messages []map[string]string
+    head int
+    tail int
+    length int
+    capacity int
+}
+func createQ(capacity int) *MessageQ {
+    return &MessageQ{
+        messages: make([]map[string]string, capacity),
+        head: 0,
+        tail: 0,
+        length: 0,
+        capacity: capacity,
+    }
+}
+func (self *MessageQ) enqueue(user string, ipAddr string, message string) {
+    if self.length == self.capacity {
+        self.dequeue()
+    }
+    messageMap := map[string]string{
+        "user": user,
+        "ipAddr": ipAddr,
+        "message": message,
+    }
+    if self.length != 0 {
+        self.tail = (self.tail+1) % self.capacity
+    }
+    self.messages[self.tail] = messageMap
+    self.length++
+}
+func (self *MessageQ) dequeue() map[string]string {
+    if len(self.messages) == 0 {
+        return nil
+    }
+    message := self.messages[self.head]
+    self.head = (self.head+1) % self.capacity
+    self.length--
+    return message
+}
+// ---- |
+
 
 // Goroutine for "/receive" endpoint
-func receiveRoutine(wg *sync.WaitGroup, w http.ResponseWriter) {
-
+func httpReceiveRoutine(wg *sync.WaitGroup, w http.ResponseWriter) {
     // Loop over messages in queue and print to http.ResponseWriter
     for i := 0; i < Messages.length; i++ {
         index := (Messages.head+i) % Messages.capacity
@@ -212,18 +239,18 @@ func receiveRoutine(wg *sync.WaitGroup, w http.ResponseWriter) {
 }
 
 // Goroutine for "/send" endpoint
-func sendRoutine(
+func httpSendRoutine(
             wg *sync.WaitGroup, 
             user string, 
             message string,
             ipAddr string) {
-
     // Add message to queue
     Messages.enqueue(user, ipAddr, message)
 
     // Finish waitgroup
     wg.Done()
 }
+
 
 // Handler function for requests to "/http/receive" endpoint
 func httpHandleReceive(w http.ResponseWriter, r *http.Request) {
@@ -238,7 +265,7 @@ func httpHandleReceive(w http.ResponseWriter, r *http.Request) {
 
     // Add waitgroup for goroutine
     wg.Add(1)
-    go receiveRoutine(&wg, w)
+    go httpReceiveRoutine(&wg, w)
 
     // Wait for goroutine to finish
     wg.Wait()
@@ -246,7 +273,6 @@ func httpHandleReceive(w http.ResponseWriter, r *http.Request) {
 
 // Handler function for requests to "/http/send" endpoint
 func httpHandleSend(w http.ResponseWriter, r *http.Request) {
-    
     // Create a waitgroup
     var wg sync.WaitGroup
 
@@ -272,39 +298,12 @@ func httpHandleSend(w http.ResponseWriter, r *http.Request) {
 
         // Add a waitgroup for each goroutine
         wg.Add(1)
-        go sendRoutine(&wg, user, message, ipAddr)
+        go httpSendRoutine(&wg, user, message, ipAddr)
         wg.Wait()
         //wg.Add(1)
-        //go receiveRoutine(&wg, w)
+        //go httpReceiveRoutine(&wg, w)
 
         // Wait for all waitgroups to finish
         wg.Wait()
     }
 }
-
-// Main driver function
-func main() {
-
-    // Define a handler function for Home
-    http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-        fmt.Fprintf(w,"Welcome to tincan\nThe single-line CLI chat service\n")
-    })
-
-    // Handler function for establishing websocket
-    http.HandleFunc("/ws", wsHandler)
-
-    // Handler function for sending URL parameter messages. "/send?message=..."
-    http.HandleFunc("/http/send", httpHandleSend)
-
-    // Handler function for receiving URL parameter messages.
-    http.HandleFunc("/http/receive", httpHandleReceive)
-
-    // Start the server on port 8080
-    fmt.Println("Server listening on port 8080")
-    http.ListenAndServe(":8080", nil)
-
-    // Wait for goroutine to finish
-    wg.Wait()
-    fmt.Println("All goroutines finished")
-}
-
