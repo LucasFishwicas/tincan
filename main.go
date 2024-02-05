@@ -184,7 +184,7 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 
 
 
-// Goroutine for "/receive" endpoint
+// Goroutine for "http/receive" endpoint
 func httpReceiveRoutine(wgQ *sync.WaitGroup, w http.ResponseWriter) {
     // Loop over messages in queue and print to http.ResponseWriter
     for i := 0; i < Messages.length; i++ {
@@ -208,7 +208,7 @@ func httpReceiveRoutine(wgQ *sync.WaitGroup, w http.ResponseWriter) {
 }
 
 
-// Goroutine for "/send" endpoint
+// Goroutine for "http/send" endpoint
 func httpSendRoutine(
             wgQ *sync.WaitGroup, 
             user string, 
