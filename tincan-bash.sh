@@ -23,7 +23,7 @@ if [ $httpWebsocket = "http" ]; then
                 --data-urlencode "user=$name"
         done
     elif [ $sendReceive = "receive" ]; then
-        watch -n 3 curl -v "localhost:8080/http/receive"
+        watch -n 5 curl -v "localhost:8080/http/receive"
     else
         echo "unrecognised input"
     fi
