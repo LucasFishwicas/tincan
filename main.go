@@ -13,6 +13,7 @@ import (
 )
 
 // ---- MAY BE ABLE TO DEFINE EXTERNALLY AND IMPORT?
+// ---- MIGHT INVOLVE RESTRUCTURING FILES/FOLDERS
 // Defining a queue type and attaching enqueue() and dequeue() methods
 type MessageQ struct {
     messages []map[string]string
