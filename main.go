@@ -71,8 +71,6 @@ var (
     receiveChan chan string
     // Create channel to handle interrupt
     //signalChan = make(chan os.Signal, 1)
-    // Create a waitgroup
-    wg sync.WaitGroup
     // Declaring a global queue for messages
     Messages *MessageQ
 )
@@ -117,10 +115,11 @@ func readSend(wg *sync.WaitGroup) {
 
 // Read message sent from user client-side
 func readReceive(wg *sync.WaitGroup, conn *websocket.Conn) {
+    client := conn.LocalAddr().String // testing if this is user ip address
     for { 
         messageType, message, err := conn.ReadMessage()
         if err != nil {
-            fmt.Println("client:// left the chat")
+            fmt.Print("client://", client,  "left the chat")
             return
         }
         if string(message) != "" {
@@ -159,6 +158,9 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
         log.Println("Error sending message:", err)
         return
     }
+
+    // Create a waitgroup
+    var wg sync.WaitGroup
 
     // Launch goroutines for reading and writing
     wg.Add(2)
