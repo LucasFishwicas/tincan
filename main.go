@@ -114,12 +114,11 @@ func readSend(wg *sync.WaitGroup) {
 
 
 // Read message sent from user client-side
-func readReceive(wg *sync.WaitGroup, conn *websocket.Conn) {
-    client := conn.LocalAddr().String // testing if this is user ip address
+func readReceive(wg *sync.WaitGroup, conn *websocket.Conn, client string) {
     for { 
         messageType, message, err := conn.ReadMessage()
         if err != nil {
-            fmt.Print("client://", client,  "left the chat")
+            fmt.Println("client://", client,  "left the chat")
             return
         }
         if string(message) != "" {
@@ -145,10 +144,10 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
     }
     defer conn.Close()
 
-    client := conn.RemoteAddr()
+    client := conn.RemoteAddr().String()
 
     // Notify server of successful upgrade
-    fmt.Println("client://", client, " entered the chat")
+    fmt.Println("client://", client, "entered the chat")
 
     // Send a welcome message
     err = conn.WriteMessage(websocket.TextMessage, 
@@ -165,7 +164,7 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
     // Launch goroutines for reading and writing
     wg.Add(2)
     go readSend(&wg)
-    go readReceive(&wg, conn)
+    go readReceive(&wg, conn, client)
 
     // Eternally loop and check channel messages
     for {
@@ -305,6 +304,6 @@ func main() {
     http.ListenAndServe(":8080", nil)
 
     // Wait for goroutine to finish
-    wg.Wait()
+    //wg.Wait()
     fmt.Println("All goroutines finished")
 }
