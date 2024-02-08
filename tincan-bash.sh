@@ -25,7 +25,7 @@ if [ $httpWebsocket = "http" ]; then
             readMessage
         done
     elif [ $sendReceive = "receive" ]; then
-        watch -n 5 curl -v "$ipAddr/http/receive"
+        watch -n 3 curl "$ipAddr/http/receive"
     else
         echo "unrecognised input"
     fi

@@ -10,52 +10,9 @@ import (
 
 	"github.com/gorilla/websocket"
 	"sync"
-)
 
-// ---- MAY BE ABLE TO DEFINE EXTERNALLY AND IMPORT?
-// ---- MIGHT INVOLVE RESTRUCTURING FILES/FOLDERS
-// Defining a queue type and attaching enqueue() and dequeue() methods
-type MessageQ struct {
-    messages []map[string]string
-    head int
-    tail int
-    length int
-    capacity int
-}
-func createQ(capacity int) *MessageQ {
-    return &MessageQ{
-        messages: make([]map[string]string, capacity),
-        head: 0,
-        tail: 0,
-        length: 0,
-        capacity: capacity,
-    }
-}
-func (self *MessageQ) enqueue(user string, ipAddr string, message string) {
-    if self.length == self.capacity {
-        self.dequeue()
-    }
-    messageMap := map[string]string{
-        "user": user,
-        "ipAddr": ipAddr,
-        "message": message,
-    }
-    if self.length != 0 {
-        self.tail = (self.tail+1) % self.capacity
-    }
-    self.messages[self.tail] = messageMap
-    self.length++
-}
-func (self *MessageQ) dequeue() map[string]string {
-    if len(self.messages) == 0 {
-        return nil
-    }
-    message := self.messages[self.head]
-    self.head = (self.head+1) % self.capacity
-    self.length--
-    return message
-}
-// ---- |
+    "dev/golang/tincan/models"
+)
 
 var (
     // Create Upgrader struct
@@ -72,7 +29,7 @@ var (
     // Create channel to handle interrupt
     //signalChan = make(chan os.Signal, 1)
     // Declaring a global queue for messages
-    Messages *MessageQ
+    Messages *models.MessageQ
 )
 
 func init() {
@@ -81,7 +38,7 @@ func init() {
     // Initialising receiveChan
     receiveChan = make(chan string)
     // Initialising Messages queue of size 5
-    Messages = createQ(5)
+    Messages = models.CreateQ(5)
 }
 
 
@@ -188,10 +145,10 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 // Goroutine for "http/receive" endpoint
 func httpReceiveRoutine(wgQ *sync.WaitGroup, w http.ResponseWriter) {
     // Loop over messages in queue and print to http.ResponseWriter
-    for i := 0; i < Messages.length; i++ {
-        index := (Messages.head+i) % Messages.capacity
-        fmt.Printf("length: %d, i: %d, index: %d\n", Messages.length, i, index)
-        msg := Messages.messages[index]
+    for i := 0; i < Messages.Length; i++ {
+        index := (Messages.Head+i) % Messages.Capacity
+        fmt.Printf("length: %d, i: %d, index: %d\n", Messages.Length, i, index)
+        msg := Messages.Messages[index]
         if msg["message"] == "" {
             continue
         }
@@ -216,7 +173,7 @@ func httpSendRoutine(
             message string,
             ipAddr string) {
     // Add message to queue
-    Messages.enqueue(user, ipAddr, message)
+    Messages.Enqueue(user, ipAddr, message)
 
     // Finish waitgroup
     wgQ.Done()
