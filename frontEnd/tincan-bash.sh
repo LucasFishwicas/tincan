@@ -1,5 +1,6 @@
 #!/bin/bash
 
+
 echo "Container: Started docker container"
 
 ipAddr="localhost:8080"
