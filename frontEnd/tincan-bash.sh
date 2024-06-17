@@ -13,8 +13,12 @@ function readMessage() {
 
 curl -v $ipAddr
 
+httpOptions=("http" "h" "htt" "htp")
+websocketOptions=("websocket" "ws" "websockey" "web" "websock" "wscat")
+
 read -p "http or websocket? " httpWebsocket
-if [ $httpWebsocket = "http" ]; then
+#if [ $httpWebsocket = "http" ]; then
+if [[ ${httpOptions[@]} =~ $httpWebsocket ]]; then
     read -p "send or receive? " sendReceive
     if [ $sendReceive = "send" ]; then
         read -p "name: " name
@@ -30,7 +34,8 @@ if [ $httpWebsocket = "http" ]; then
     else
         echo "unrecognised input"
     fi
-elif [ $httpWebsocket = "websocket" ]; then
+#elif [ $httpWebsocket = "websocket" ]; then
+elif [[ ${websocketOptions[@]} =~ $httpWebsocket ]]; then
     wscat -c "ws://$ipAddr/ws" \
         --header "Connection: Upgrade" \
         --header "Upgrade: websocket" \
